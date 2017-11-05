@@ -335,9 +335,14 @@ class NeoPatterns : public Adafruit_DotStar
         //Serial.println( F("breateupdate") );
         // Calculate sin interpolation between Color1 and Color2
         // Optimise order of operations to minimize truncation error
-        uint8_t red = pgm_read_byte(&gammaTable[(int)((Red(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Red(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))]);
-        uint8_t green = pgm_read_byte(&gammaTable[(int)((Green(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Green(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))]);
-        uint8_t blue = pgm_read_byte(&gammaTable[(int)((Blue(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Blue(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))-1]);
+        //uint8_t red = pgm_read_byte(&gammaTable[(int)((Red(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Red(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))]);
+        //uint8_t green = pgm_read_byte(&gammaTable[(int)((Green(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Green(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))]);
+        //uint8_t blue = pgm_read_byte(&gammaTable[(int)((Blue(Color1)*((sin((float)Index/TotalSteps*6.283)+1)/2))) + (int)((Blue(Color2)*((-sin((float)Index/TotalSteps*6.283)+1)/2)))-1]);
+
+        uint8_t red = ( (pgm_read_byte( &sineTable[ ((  (256/numPixels()/numWaves)+(Index*256/TotalSteps)  )%256) & 0xFF] )) * Red(Color1) / 0xFF );// + Red(Color2)*(pgm_read_byte(&sineTable[(((int)((double)(i-30)/60*256)+(Index*256/TotalSteps))%256) & 0xFF]));
+
+        uint8_t green = ( (pgm_read_byte( &sineTable[ ((  (256/numPixels()/numWaves)+(Index*256/TotalSteps)  )%256) & 0xFF] )) * Green(Color1) / 0xFF );
+        uint8_t blue = ( (pgm_read_byte( &sineTable[ ((  (256/numPixels()/numWaves)+(Index*256/TotalSteps)  )%256) & 0xFF] )) * Blue(Color1) / 0xFF );
         ColorSet(Color(red, green, blue));
         show();
         Increment();
@@ -378,7 +383,6 @@ class NeoPatterns : public Adafruit_DotStar
           uint8_t green = floor(Green(Color1)*pgm_read_byte(&sineTable[(((int)((double)i/60*256)+(Index*256/TotalSteps))%256) & 0xFF]));
           uint8_t blue = ( (pgm_read_byte( &sineTable[ ((  (i*256/numPixels()/numWaves)+((Index-30)*256/TotalSteps)  )%256) & 0xFF] )) * Blue(Color2) / 0xFF );
 
-          Serial.println(red, HEX);
           //ColorSet(Color(red, green, blue));
           setPixelColor(i, Color(pgm_read_byte(&gammaTable[red]), green, pgm_read_byte(&gammaTable[blue])));
         }
@@ -533,27 +537,51 @@ void loop()
 
     // Color
     if (len>0){
+      for(int i = 0; i < len; i++){
+          Serial.print(packetbuffer[i]);
+        }
+        Serial.print("\n");
       if (packetbuffer[1] == 'C') {
-        uint8_t red = packetbuffer[2];
-        uint8_t green = packetbuffer[3];
-        uint8_t blue = packetbuffer[4];
-        Serial.print ("RGB #");
-        if (red < 0x10) Serial.print("0");
-        Serial.print(red, HEX);
-        if (green < 0x10) Serial.print("0");
-        Serial.print(green, HEX);
-        if (blue < 0x10) Serial.print("0");
-        Serial.println(blue, HEX);
+          uint8_t red = packetbuffer[2];
+          uint8_t green = packetbuffer[3];
+          uint8_t blue = packetbuffer[4];
+          Serial.print ("RGB #");
+          if (red < 0x10) Serial.print("0");
+          Serial.print(red, HEX);
+          if (green < 0x10) Serial.print("0");
+          Serial.print(green, HEX);
+          if (blue < 0x10) Serial.print("0");
+          Serial.println(blue, HEX);
+  
+          Ring1.ActivePattern=NONE;
+          Ring1.ColorSet(Color(red,green,blue));
 
-        Ring1.ActivePattern=NONE;
-        Ring1.ColorSet(Color(red,green,blue));
-      }else if(packetbuffer[1] == 'P'){
-        Ring1.ActivePattern=RAINBOW_CYCLE;
-        Ring1.TotalSteps=255;
-        int speed = ((packetbuffer[3] & 0xFF)) + ((packetbuffer[2] & 0xFF) << 8);
-        Ring1.Interval=speed;
-        Ring1.Direction=FORWARD;
-      }
+        }else if(packetbuffer[1] == 'R'){
+
+          Ring1.ActivePattern=RAINBOW_CYCLE;
+          Ring1.TotalSteps=255;
+          int speed = ((packetbuffer[3] & 0xFF)) + ((packetbuffer[2] & 0xFF) << 8);
+          Ring1.Interval=speed;
+          Ring1.Direction=FORWARD;
+          
+        }else if(packetbuffer[1] == 'B'){
+          uint8_t red = packetbuffer[2];
+          uint8_t green = packetbuffer[3];
+          uint8_t blue = packetbuffer[4];
+          Serial.print ("RGB #");
+          if (red < 0x10) Serial.print("0");
+          Serial.print(red, HEX);
+          if (green < 0x10) Serial.print("0");
+          Serial.print(green, HEX);
+          if (blue < 0x10) Serial.print("0");
+          Serial.println(blue, HEX);
+          
+          Ring1.ActivePattern=BREATHE;
+          Ring1.TotalSteps=255;
+
+          Ring1.Direction=FORWARD;
+          Ring1.Breathe(Color(red,green,blue), Color(0x00,0x00,0x00), 60, 20, FORWARD);
+        }
     }
 
 
